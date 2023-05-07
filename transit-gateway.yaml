@@ -1,0 +1,282 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Plantilla para la creacion de un Transit Gateway con 1 VPC de servicio y 2 VPCs cliente. El trafico de las VPC cliente se realiza de forma privada a traves de los Gateway NAT de la VPC de servicio. No es posible la comunicacion entre las VPCs cliente. Ademas, lanza tres instancias en cada una de las VPCs en subredes privadas con un perfil de instancia que permita registrarse con AWS SSM
+Parameters:
+  ASN:
+    Type: Number
+    Default: 64512
+    MinValue: 64512
+    MaxValue: 65534
+  AmiID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: ID de la AMI
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2'
+Resources:
+  miTransitGateway:
+    Type: 'AWS::EC2::TransitGateway'
+    Properties:
+      AmazonSideAsn: !Ref ASN
+      AutoAcceptSharedAttachments: enable
+      DefaultRouteTableAssociation: disable
+      Description: Mi Transit Gateway
+      Tags:
+        - Key: Name
+          Value: Demo-Transit-Gateway
+  VPCServicio:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Nombre: Servicio
+        VPC: 10.0.0.0/16
+        SubredesPublicas: SI
+        SubredesPrivadas: SI
+        SubredPublica1: 10.0.0.0/24
+        SubredPublica2: 10.0.1.0/24
+        SubredPrivada1: 10.0.2.0/24
+        SubredPrivada2: 10.0.3.0/24
+        NATGateways: SI
+        Bastion: 'NO'
+      TemplateURL: ./vpc.yaml
+  VPCA:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Nombre: A
+        VPC: 192.168.0.0/20
+        SubredesPublicas: 'NO'
+        SubredesPrivadas: SI
+        SubredPrivada1: 192.168.0.0/24
+        SubredPrivada2: 192.168.1.0/24
+        NATGateways: 'NO'
+        Bastion: 'NO'
+      TemplateURL: ./vpc.yaml
+  VPCB:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Nombre: B
+        VPC: 192.168.128.0/20
+        SubredesPublicas: 'NO'
+        SubredesPrivadas: SI
+        SubredPrivada1: 192.168.128.0/24
+        SubredPrivada2: 192.168.129.0/24
+        NATGateways: 'NO'
+        Bastion: 'NO'
+      TemplateURL: ./vpc.yaml
+  RutaTablaRutasPublicaVPCServicioVPCA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPublica
+      DestinationCidrBlock: 192.168.0.0/16
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCServicio
+  RutaTablaRutasPrivada1VPCServicioVPCA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPrivada1
+      DestinationCidrBlock: 192.168.0.0/16
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCServicio
+  RutaTablaRutasPrivada2VPCServicioVPCA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPrivada2
+      DestinationCidrBlock: 192.168.0.0/16
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCServicio
+  RutaTablaRutasPrivada1VPCATGW:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCA.Outputs.TablaRutasPrivada1
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCA
+  RutaTablaRutasPrivada2VPCATGW:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCA.Outputs.TablaRutasPrivada2
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCA
+  RutaTablaRutasPrivada1VPCBTGW:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCB.Outputs.TablaRutasPrivada1
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCB
+  RutaTablaRutasPrivada2VPCBTGW:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCB.Outputs.TablaRutasPrivada2
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCB
+  AsociacionVPCServicio:
+    Type: 'AWS::EC2::TransitGatewayAttachment'
+    Properties:
+      VpcId: !GetAtt VPCServicio.Outputs.VPC
+      TransitGatewayId: !Ref miTransitGateway
+      SubnetIds:
+        - !GetAtt VPCServicio.Outputs.Privada1
+        - !GetAtt VPCServicio.Outputs.Privada2
+      Tags:
+        - Key: Name
+          Value: AsociacionVPCServicio
+  AsociacionVPCA:
+    Type: 'AWS::EC2::TransitGatewayAttachment'
+    Properties:
+      VpcId: !GetAtt VPCA.Outputs.VPC
+      TransitGatewayId: !Ref miTransitGateway
+      SubnetIds:
+        - !GetAtt VPCA.Outputs.Privada1
+        - !GetAtt VPCA.Outputs.Privada2
+      Tags:
+        - Key: Name
+          Value: AsociacionVPCA
+  AsociacionVPCB:
+    Type: 'AWS::EC2::TransitGatewayAttachment'
+    Properties:
+      VpcId: !GetAtt VPCB.Outputs.VPC
+      TransitGatewayId: !Ref miTransitGateway
+      SubnetIds:
+        - !GetAtt VPCB.Outputs.Privada1
+        - !GetAtt VPCB.Outputs.Privada2
+      Tags:
+        - Key: Name
+          Value: AsociacionVPCB
+  TablaRutasVPCServicio:
+    Type: 'AWS::EC2::TransitGatewayRouteTable'
+    Properties:
+      TransitGatewayId: !Ref miTransitGateway
+      Tags:
+        - Key: Name
+          Value: TablaRutasVPCServicio
+  TablaRutasVPCCliente:
+    Type: 'AWS::EC2::TransitGatewayRouteTable'
+    Properties:
+      TransitGatewayId: !Ref miTransitGateway
+      Tags:
+        - Key: Name
+          Value: TablaRutasVPC-Cliente
+  AsociacionTablaRutasVPCServicio:
+    Type: 'AWS::EC2::TransitGatewayRouteTableAssociation'
+    Properties:
+      TransitGatewayAttachmentId: !Ref AsociacionVPCServicio
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCServicio
+  AsociacionTablaRutasVPCA:
+    Type: 'AWS::EC2::TransitGatewayRouteTableAssociation'
+    Properties:
+      TransitGatewayAttachmentId: !Ref AsociacionVPCA
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
+  AsociacionTablaRutasVPCB:
+    Type: 'AWS::EC2::TransitGatewayRouteTableAssociation'
+    Properties:
+      TransitGatewayAttachmentId: !Ref AsociacionVPCB
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
+  RutaEstaticaClienteTraficoInternet:
+    Type: 'AWS::EC2::TransitGatewayRoute'
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayAttachmentId: !Ref AsociacionVPCServicio
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
+  RutaEstaticaClienteRFC1918:
+    Type: 'AWS::EC2::TransitGatewayRoute'
+    Properties:
+      DestinationCidrBlock: 192.168.0.0/16
+      Blackhole: true
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
+  RutaPropagadaVPCServicioVPCA:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties: 
+      TransitGatewayAttachmentId: !Ref AsociacionVPCA
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCServicio
+  RutaPropagadaVPCServicioVPCB:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties: 
+      TransitGatewayAttachmentId: !Ref AsociacionVPCB
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCServicio
+  RolInstanciasEC2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  PerfilInstanciasEC2:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref RolInstanciasEC2
+  GrupoSeguridadICMPVPCServicio:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Trafico ICMP para instancias en VPC de servicio
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 0.0.0.0/0
+          FromPort: -1
+          ToPort: -1
+      VpcId: !GetAtt VPCServicio.Outputs.VPC
+  GrupoSeguridadICMPVPCA:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Trafico ICMP para instancias en VPC A
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 0.0.0.0/0
+          FromPort: -1
+          ToPort: -1
+      VpcId: !GetAtt VPCA.Outputs.VPC
+  GrupoSeguridadICMPVPCB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Trafico ICMP para instancias en VPC B
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: 0.0.0.0/0
+          FromPort: -1
+          ToPort: -1
+      VpcId: !GetAtt VPCB.Outputs.VPC
+  InstanciaVPCA:
+    Type: AWS::EC2::Instance
+    DependsOn: RutaPropagadaVPCServicioVPCA
+    Properties:
+      ImageId: !Ref AmiID
+      InstanceType: t4g.micro
+      SubnetId: !GetAtt VPCA.Outputs.Privada1
+      IamInstanceProfile: !Ref PerfilInstanciasEC2
+      SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCA]
+      Tags:
+        - Key: Name
+          Value: Instancia-VPC-A
+  InstanciaVPCB:
+    Type: AWS::EC2::Instance
+    DependsOn: RutaPropagadaVPCServicioVPCB
+    Properties:
+      ImageId: !Ref AmiID
+      InstanceType: t4g.micro
+      SubnetId: !GetAtt VPCB.Outputs.Privada1
+      IamInstanceProfile: !Ref PerfilInstanciasEC2
+      SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCB]
+      Tags:
+        - Key: Name
+          Value: Instancia-VPC-B
+  InstanciaVPCServicio:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiID
+      InstanceType: t4g.micro
+      SubnetId: !GetAtt VPCServicio.Outputs.Privada1
+      IamInstanceProfile: !Ref PerfilInstanciasEC2
+      SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCServicio]
+      Tags:
+        - Key: Name
+          Value: Instancia-VPC-Servicio
+
+
