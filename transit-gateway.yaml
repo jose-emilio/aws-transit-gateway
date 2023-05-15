@@ -27,12 +27,9 @@ Resources:
       Parameters:
         Nombre: Servicio
         VPC: 10.0.0.0/16
+        AZ: 1
         SubredesPublicas: SI
         SubredesPrivadas: SI
-        SubredPublica1: 10.0.0.0/24
-        SubredPublica2: 10.0.1.0/24
-        SubredPrivada1: 10.0.2.0/24
-        SubredPrivada2: 10.0.3.0/24
         NATGateways: SI
         Bastion: 'NO'
       TemplateURL: ./vpc.yaml
@@ -42,10 +39,9 @@ Resources:
       Parameters:
         Nombre: A
         VPC: 192.168.0.0/20
+        AZ: 1
         SubredesPublicas: 'NO'
         SubredesPrivadas: SI
-        SubredPrivada1: 192.168.0.0/24
-        SubredPrivada2: 192.168.1.0/24
         NATGateways: 'NO'
         Bastion: 'NO'
       TemplateURL: ./vpc.yaml
@@ -55,10 +51,9 @@ Resources:
       Parameters:
         Nombre: B
         VPC: 192.168.128.0/20
+        AZ: 1
         SubredesPublicas: 'NO'
         SubredesPrivadas: SI
-        SubredPrivada1: 192.168.128.0/24
-        SubredPrivada2: 192.168.129.0/24
         NATGateways: 'NO'
         Bastion: 'NO'
       TemplateURL: ./vpc.yaml
@@ -76,24 +71,10 @@ Resources:
       DestinationCidrBlock: 192.168.0.0/16
       TransitGatewayId: !Ref miTransitGateway
     DependsOn: AsociacionVPCServicio
-  RutaTablaRutasPrivada2VPCServicioVPCA:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPrivada2
-      DestinationCidrBlock: 192.168.0.0/16
-      TransitGatewayId: !Ref miTransitGateway
-    DependsOn: AsociacionVPCServicio
   RutaTablaRutasPrivada1VPCATGW:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !GetAtt VPCA.Outputs.TablaRutasPrivada1
-      DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref miTransitGateway
-    DependsOn: AsociacionVPCA
-  RutaTablaRutasPrivada2VPCATGW:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !GetAtt VPCA.Outputs.TablaRutasPrivada2
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref miTransitGateway
     DependsOn: AsociacionVPCA
@@ -104,13 +85,6 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref miTransitGateway
     DependsOn: AsociacionVPCB
-  RutaTablaRutasPrivada2VPCBTGW:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !GetAtt VPCB.Outputs.TablaRutasPrivada2
-      DestinationCidrBlock: 0.0.0.0/0
-      TransitGatewayId: !Ref miTransitGateway
-    DependsOn: AsociacionVPCB
   AsociacionVPCServicio:
     Type: 'AWS::EC2::TransitGatewayAttachment'
     Properties:
@@ -118,7 +92,6 @@ Resources:
       TransitGatewayId: !Ref miTransitGateway
       SubnetIds:
         - !GetAtt VPCServicio.Outputs.Privada1
-        - !GetAtt VPCServicio.Outputs.Privada2
       Tags:
         - Key: Name
           Value: AsociacionVPCServicio
@@ -129,7 +102,6 @@ Resources:
       TransitGatewayId: !Ref miTransitGateway
       SubnetIds:
         - !GetAtt VPCA.Outputs.Privada1
-        - !GetAtt VPCA.Outputs.Privada2
       Tags:
         - Key: Name
           Value: AsociacionVPCA
@@ -140,7 +112,6 @@ Resources:
       TransitGatewayId: !Ref miTransitGateway
       SubnetIds:
         - !GetAtt VPCB.Outputs.Privada1
-        - !GetAtt VPCB.Outputs.Privada2
       Tags:
         - Key: Name
           Value: AsociacionVPCB
@@ -278,5 +249,3 @@ Resources:
       Tags:
         - Key: Name
           Value: Instancia-VPC-Servicio
-
-
