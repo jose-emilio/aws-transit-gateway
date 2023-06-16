@@ -28,6 +28,13 @@ Parameters:
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
     Default: 192.168.128.0/17
     ConstraintDescription: Debe ser una red IP válida de la forma x.x.x.x
+  EntornoLearnerLab:
+    Type: String
+    Description: Indica si se despliega la pila en AWS Learner Labs o en una cuenta convencional de AWS
+    AllowedValues: ["SI","NO"]
+    Default: "NO"
+Conditions:
+  CrearRolIAM: !Equals [!Ref EntornoLearnerLab, "NO"]
 Resources:
   miTransitGateway:
     Type: 'AWS::EC2::TransitGateway'
@@ -50,6 +57,7 @@ Resources:
         SubredesPrivadas: SI
         NATGateways: SI
         Bastion: 'NO'
+        LearnerLab: !Ref EntornoLearnerLab
       TemplateURL: ./vpc.yaml
   VPCA:
     Type: AWS::CloudFormation::Stack
@@ -62,6 +70,7 @@ Resources:
         SubredesPrivadas: SI
         NATGateways: 'NO'
         Bastion: 'NO'
+        LearnerLab: !Ref EntornoLearnerLab
       TemplateURL: ./vpc.yaml
   VPCB:
     Type: AWS::CloudFormation::Stack
@@ -74,6 +83,7 @@ Resources:
         SubredesPrivadas: SI
         NATGateways: 'NO'
         Bastion: 'NO'
+        LearnerLab: !Ref EntornoLearnerLab
       TemplateURL: ./vpc.yaml
   RutaTablaRutasPublicaVPCServicioVPCA:
     Type: AWS::EC2::Route
@@ -206,6 +216,7 @@ Resources:
       TransitGatewayRouteTableId: !Ref TablaRutasVPCServicio
   RolInstanciasEC2:
     Type: AWS::IAM::Role
+    Condition: CrearRolIAM
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -219,6 +230,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   PerfilInstanciasEC2:
     Type: AWS::IAM::InstanceProfile
+    Condition: CrearRolIAM
     Properties:
       Roles:
         - !Ref RolInstanciasEC2
@@ -259,7 +271,7 @@ Resources:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
       SubnetId: !GetAtt VPCA.Outputs.Privada1
-      IamInstanceProfile: !Ref PerfilInstanciasEC2
+      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciasEC2, LabInstanceProfile]
       SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCA]
       Tags:
         - Key: Name
@@ -271,7 +283,7 @@ Resources:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
       SubnetId: !GetAtt VPCB.Outputs.Privada1
-      IamInstanceProfile: !Ref PerfilInstanciasEC2
+      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciasEC2, LabInstanceProfile]
       SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCB]
       Tags:
         - Key: Name
@@ -282,7 +294,7 @@ Resources:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
       SubnetId: !GetAtt VPCServicio.Outputs.Privada1
-      IamInstanceProfile: !Ref PerfilInstanciasEC2
+      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciasEC2, LabInstanceProfile]
       SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCServicio]
       Tags:
         - Key: Name
