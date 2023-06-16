@@ -20,13 +20,13 @@ Parameters:
     Type: String
     Description: Bloque CIDR de la VPC-A
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
-    Default: 192.168.0.0/16
+    Default: 192.168.0.0/17
     ConstraintDescription: Debe ser una red IP válida de la forma x.x.x.x
   CIDRVPCB:
     Type: String
     Description: Bloque CIDR de la VPC-B
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
-    Default: 192.168.1.0/16
+    Default: 192.168.128.0/17
     ConstraintDescription: Debe ser una red IP válida de la forma x.x.x.x
 Resources:
   miTransitGateway:
@@ -79,14 +79,28 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPublica
-      DestinationCidrBlock: 192.168.0.0/16
+      DestinationCidrBlock: !Ref CIDRVPCA
       TransitGatewayId: !Ref miTransitGateway
     DependsOn: AsociacionVPCServicio
   RutaTablaRutasPrivada1VPCServicioVPCA:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPrivada1
-      DestinationCidrBlock: 192.168.0.0/16
+      DestinationCidrBlock: !Ref CIDRVPCA
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCServicio
+  RutaTablaRutasPublicaVPCServicioVPCB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPublica
+      DestinationCidrBlock: !Ref CIDRVPCB
+      TransitGatewayId: !Ref miTransitGateway
+    DependsOn: AsociacionVPCServicio
+  RutaTablaRutasPrivada1VPCServicioVPCB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !GetAtt VPCServicio.Outputs.TablaRutasPrivada1
+      DestinationCidrBlock: !Ref CIDRVPCB
       TransitGatewayId: !Ref miTransitGateway
     DependsOn: AsociacionVPCServicio
   RutaTablaRutasPrivada1VPCATGW:
@@ -168,10 +182,16 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayAttachmentId: !Ref AsociacionVPCServicio
       TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
-  RutaEstaticaClienteRFC1918:
+  RutaEstaticaClienteARFC1918:
     Type: 'AWS::EC2::TransitGatewayRoute'
     Properties:
-      DestinationCidrBlock: 192.168.0.0/16
+      DestinationCidrBlock: !Ref CIDRVPCA
+      Blackhole: true
+      TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
+  RutaEstaticaClienteBRFC1918:
+    Type: 'AWS::EC2::TransitGatewayRoute'
+    Properties:
+      DestinationCidrBlock: !Ref CIDRVPCB
       Blackhole: true
       TransitGatewayRouteTableId: !Ref TablaRutasVPCCliente
   RutaPropagadaVPCServicioVPCA:
