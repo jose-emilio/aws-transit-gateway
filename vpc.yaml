@@ -97,21 +97,21 @@ Parameters:
 Conditions:
   CrearSubredesPublicas: !Equals 
     - !Ref SubredesPublicas
-    - SI
+    - "SI"
   CrearSubredesPrivadas: !Equals 
     - !Ref SubredesPrivadas
-    - SI
+    - "SI"
   CrearNATGateways: !And 
     - !Equals 
       - !Ref NATGateways
-      - SI
+      - "SI"
     - !Condition CrearSubredesPublicas
     - !Condition CrearSubredesPrivadas
   CrearBastion: !And 
     - !Condition CrearSubredesPublicas
     - !Equals 
       - !Ref Bastion
-      - SI
+      - "SI"
   CrearSubredesPublicas2AZ: !And
     - !Equals
       - !Ref AZ
@@ -130,7 +130,7 @@ Conditions:
   CrearRolIAM: !And
     - !Equals
       - !Ref LearnerLab
-      - NO
+      - "NO"
     - !Condition CrearBastion
 Resources:
   miVPC:
