@@ -58,7 +58,7 @@ Resources:
         NATGateways: SI
         Bastion: 'NO'
         LearnerLab: !Ref EntornoLearnerLab
-      TemplateURL: ./vpc.yaml
+      TemplateURL: ./vpc/vpc.yaml
   VPCA:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -71,7 +71,7 @@ Resources:
         NATGateways: 'NO'
         Bastion: 'NO'
         LearnerLab: !Ref EntornoLearnerLab
-      TemplateURL: ./vpc.yaml
+      TemplateURL: ./vpc/vpc.yaml
   VPCB:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -84,7 +84,7 @@ Resources:
         NATGateways: 'NO'
         Bastion: 'NO'
         LearnerLab: !Ref EntornoLearnerLab
-      TemplateURL: ./vpc.yaml
+      TemplateURL: ./vpc/vpc.yaml
   RutaTablaRutasPublicaVPCServicioVPCA:
     Type: AWS::EC2::Route
     Properties:
