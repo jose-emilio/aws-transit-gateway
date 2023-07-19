@@ -28,16 +28,21 @@ Parameters:
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
     Default: 192.168.128.0/17
     ConstraintDescription: Debe ser una red IP válida de la forma x.x.x.x
-  EntornoLearnerLab:
+  AWSAcademy:
     Type: String
-    Description: Indica si se despliega la pila en AWS Learner Labs o en una cuenta convencional de AWS
+    Description: Indica si se despliega la pila en AWS Academy Learner Labs o en una cuenta convencional de AWS
     AllowedValues: ["SI","NO"]
     Default: "NO"
 Conditions:
-  CrearRolIAM: !Equals [!Ref EntornoLearnerLab, "NO"]
+  CrearRolIAM: !Equals [!Ref AWSAcademy, "NO"]
 Resources:
+  rolIAM:
+    Type: AWS::CloudFormation::Stack
+    Condition: CrearRolIAM
+    Properties:
+      TemplateURL: ./iam/iam.yaml
   miTransitGateway:
-    Type: 'AWS::EC2::TransitGateway'
+    Type: AWS::EC2::TransitGateway
     Properties:
       AmazonSideAsn: !Ref ASN
       AutoAcceptSharedAttachments: enable
@@ -57,7 +62,7 @@ Resources:
         SubredesPrivadas: SI
         NATGateways: SI
         Bastion: 'NO'
-        LearnerLab: !Ref EntornoLearnerLab
+        LearnerLab: !Ref AWSAcademy
       TemplateURL: ./vpc/vpc.yaml
   VPCA:
     Type: AWS::CloudFormation::Stack
@@ -70,7 +75,7 @@ Resources:
         SubredesPrivadas: SI
         NATGateways: 'NO'
         Bastion: 'NO'
-        LearnerLab: !Ref EntornoLearnerLab
+        LearnerLab: !Ref AWSAcademy
       TemplateURL: ./vpc/vpc.yaml
   VPCB:
     Type: AWS::CloudFormation::Stack
@@ -83,7 +88,7 @@ Resources:
         SubredesPrivadas: SI
         NATGateways: 'NO'
         Bastion: 'NO'
-        LearnerLab: !Ref EntornoLearnerLab
+        LearnerLab: !Ref AWSAcademy
       TemplateURL: ./vpc/vpc.yaml
   RutaTablaRutasPublicaVPCServicioVPCA:
     Type: AWS::EC2::Route
@@ -214,26 +219,6 @@ Resources:
     Properties: 
       TransitGatewayAttachmentId: !Ref AsociacionVPCB
       TransitGatewayRouteTableId: !Ref TablaRutasVPCServicio
-  RolInstanciasEC2:
-    Type: AWS::IAM::Role
-    Condition: CrearRolIAM
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - ec2.amazonaws.com
-          Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-  PerfilInstanciasEC2:
-    Type: AWS::IAM::InstanceProfile
-    Condition: CrearRolIAM
-    Properties:
-      Roles:
-        - !Ref RolInstanciasEC2
   GrupoSeguridadICMPVPCServicio:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -271,7 +256,7 @@ Resources:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
       SubnetId: !GetAtt VPCA.Outputs.Privada1
-      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciasEC2, LabInstanceProfile]
+      IamInstanceProfile: !If [CrearRolIAM, !GetAtt rolIAM.Outputs.PerfilInstancia, LabInstanceProfile]
       SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCA]
       Tags:
         - Key: Name
@@ -283,7 +268,7 @@ Resources:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
       SubnetId: !GetAtt VPCB.Outputs.Privada1
-      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciasEC2, LabInstanceProfile]
+      IamInstanceProfile: !If [CrearRolIAM, !GetAtt rolIAM.Outputs.PerfilInstancia, LabInstanceProfile]
       SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCB]
       Tags:
         - Key: Name
@@ -294,8 +279,18 @@ Resources:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
       SubnetId: !GetAtt VPCServicio.Outputs.Privada1
-      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciasEC2, LabInstanceProfile]
+      IamInstanceProfile: !If [CrearRolIAM, !GetAtt rolIAM.Outputs.PerfilInstancia, LabInstanceProfile]
       SecurityGroupIds: [!Ref GrupoSeguridadICMPVPCServicio]
       Tags:
         - Key: Name
           Value: Instancia-VPC-Servicio
+Outputs:
+  InstanciaA:
+    Description: Instancia en la VPC cliente A. Tiene salida a Internet a traves de la VPC de Servicio
+    Value: !Ref InstanciaVPCA
+  InstanciaB:
+    Description: Instancia en la VPC cliente B. Tiene salida a Internet a traves de la VPC de Servicio
+    Value: !Ref InstanciaVPCA
+  InstanciaServicio:
+    Description: Instancia en la VPC de servicio. Tiene salida directa a Internet
+    Value: !Ref InstanciaVPCA  

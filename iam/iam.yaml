@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea el rol de IAM necesario para administrar la instancia mediante AWS SSM Session Manager
+Resources:
+  RolInstanciasEC2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  PerfilInstanciasEC2:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref RolInstanciasEC2
+Outputs:
+  PerfilInstancia:
+    Description: Perfil de la instancia creado
+    Value: !Ref PerfilInstanciasEC2
