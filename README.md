@@ -22,7 +22,9 @@ Adicionalmente, el tráfico entre la `VPC-A` y `VPC-B` no debe permitirse.
 * **NAT Gateway** para proporcionar salida hacia Internet desde la `VPC-Servicio`
 * **AWS Systems Manager**, utilizando la característica <em>Session Manager</em> para administrar las instancias EC2 de forma segura
 
-![Arquitectura](images/aws-transit-gateway.png)
+<p align="center">
+  <img src="images/aws-transit-gateway.png">
+</p>
 
 ## **Instrucciones (AWS CloudFormation)**
 
