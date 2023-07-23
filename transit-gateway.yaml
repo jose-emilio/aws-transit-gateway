@@ -290,7 +290,7 @@ Outputs:
     Value: !Ref InstanciaVPCA
   InstanciaB:
     Description: Instancia en la VPC cliente B. Tiene salida a Internet a traves de la VPC de Servicio
-    Value: !Ref InstanciaVPCA
+    Value: !Ref InstanciaVPCB
   InstanciaServicio:
     Description: Instancia en la VPC de servicio. Tiene salida directa a Internet
-    Value: !Ref InstanciaVPCA  
+    Value: !Ref InstanciaVPCServicio  
