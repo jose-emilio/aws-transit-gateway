@@ -251,7 +251,7 @@ Resources:
       VpcId: !GetAtt VPCB.Outputs.VPC
   InstanciaVPCA:
     Type: AWS::EC2::Instance
-    DependsOn: RutaPropagadaVPCServicioVPCA
+    DependsOn: [AsociacionTablaRutasVPCA, AsociacionTablaRutasVPCServicio]
     Properties:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
@@ -263,7 +263,7 @@ Resources:
           Value: Instancia-VPC-A
   InstanciaVPCB:
     Type: AWS::EC2::Instance
-    DependsOn: RutaPropagadaVPCServicioVPCB
+    DependsOn: [AsociacionTablaRutasVPCB, AsociacionTablaRutasVPCServicio]
     Properties:
       ImageId: !Ref AmiID
       InstanceType: t4g.micro
